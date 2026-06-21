@@ -72,22 +72,77 @@ class RSSCollector(BaseCollector):
 class HTMLCollector(BaseCollector):
     def collect(self) -> list[NewsItem]:
         resp = requests.get(self.config.url, timeout=30, headers={
-            "User-Agent": "Mozilla/5.0 (compatible; InfoCollector/1.0)"
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/120.0.0.0 Safari/537.36"
+            ),
+            "Accept": "text/html,application/xhtml+xml",
+            "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
         })
         resp.raise_for_status()
+        resp.encoding = resp.apparent_encoding or "utf-8"
         soup = BeautifulSoup(resp.text, "html.parser")
-        items = []
-        for link in soup.find_all("a", href=True):
-            text = link.get_text(strip=True)
-            if len(text) < 10:
-                continue
-            items.append(NewsItem(
-                title=text,
-                url=link["href"],
-                summary=text,
-                source=self.config.name,
-            ))
-        return items[:30]
+        items: list[NewsItem] = []
+
+        mapping = self.config.html_mapping
+
+        if mapping and mapping.item_selector:
+            # ── CSS-selector based extraction ──
+            containers = soup.select(mapping.item_selector)
+            for el in containers:
+                # Title
+                if mapping.title_selector:
+                    title_el = el.select_one(mapping.title_selector)
+                    title = title_el.get_text(strip=True) if title_el else ""
+                else:
+                    title = el.get_text(strip=True)
+
+                # Link
+                link = ""
+                if mapping.link_selector:
+                    link_el = el.select_one(mapping.link_selector)
+                    if link_el:
+                        link = link_el.get(mapping.link_attr, "")
+                if not link:
+                    a = el.find("a") if el.name != "a" else el
+                    if a and a.name == "a":
+                        link = a.get("href", "")
+                    elif el.name == "a":
+                        link = el.get("href", "")
+
+                # Summary
+                summary = ""
+                if mapping.summary_selector:
+                    sum_el = el.select_one(mapping.summary_selector)
+                    if sum_el:
+                        summary = self._clean_html(str(sum_el))
+                if not summary:
+                    summary = title
+
+                if title and len(title) >= 8:
+                    if mapping.url_prefix and link and not link.startswith("http"):
+                        link = mapping.url_prefix + link
+                    items.append(NewsItem(
+                        title=title,
+                        url=link or "",
+                        summary=summary,
+                        source=self.config.name,
+                    ))
+        else:
+            # ── Default: extract all meaningful links ──
+            for link in soup.find_all("a", href=True):
+                text = link.get_text(strip=True)
+                if len(text) < 10:
+                    continue
+                items.append(NewsItem(
+                    title=text,
+                    url=link["href"],
+                    summary=text,
+                    source=self.config.name,
+                ))
+
+        return items
 
 
 class JSONCollector(BaseCollector):
@@ -120,7 +175,7 @@ class JSONCollector(BaseCollector):
                 summary=self._clean_html(summary),
                 source=self.config.name,
             ))
-        return items[:30]
+        return items
 
     @staticmethod
     def _resolve_path(data, path: str):

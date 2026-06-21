@@ -123,29 +123,8 @@ class NewsAnalyzer:
         return "\n".join(lines)
 
     def _build_prompt(self, news_text: str) -> str:
-        return f"""你是一个专业的新闻编辑，请根据以下新闻列表生成一份新闻简报。
-
-要求：
-1. 将新闻按主题分类（科技、财经、社会、国际等）
-2. 每条新闻用一句话概括（不超过80字），包含标题和链接
-3. 选出3-5条重点关注新闻
-4. 输出严格的JSON格式，不要包含其他文字
-
-输出JSON格式：
-{{
-    "title": "每日新闻简报",
-    "highlights": ["重点新闻1", "重点新闻2"],
-    "categories": [
-        {{
-            "category": "科技",
-            "items": ["[新闻标题](链接) - 一句话摘要"]
-        }}
-    ]
-}}
-
-以下是新闻列表：
-
-{news_text}"""
+        prompt_template = self.config.analysis_prompt
+        return prompt_template.replace("{news_text}", news_text)
 
     def _call_llm(self, prompt: str) -> str:
         last_error = None
