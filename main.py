@@ -1,3 +1,5 @@
+"""新闻信息收集与简报生成系统 — CLI + Web 双模式入口。"""
+
 import argparse
 import io
 import sys
@@ -5,11 +7,34 @@ from datetime import datetime
 from pathlib import Path
 
 from src.config_loader import load_config
-from src.collector import create_collector, NewsItem
+from src.collector import NewsItem, create_collector
 from src.analyzer import NewsAnalyzer
-from src.email_sender import EmailSender
 
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+# Ensure UTF-8 console output (dev mode only; PyInstaller --console handles this natively).
+if not getattr(sys, "frozen", False):
+    try:
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+    except (ValueError, AttributeError, OSError):
+        pass
+
+
+def _is_frozen() -> bool:
+    """Check if running as a PyInstaller-frozen executable."""
+    return getattr(sys, "frozen", False)
+
+
+def _open_browser(port: int) -> None:
+    """Open the default browser to the application URL (non-blocking)."""
+    import threading
+    import webbrowser
+
+    def _open():
+        import time
+        time.sleep(1.0)
+        webbrowser.open(f"http://localhost:{port}")
+
+    t = threading.Thread(target=_open, daemon=True)
+    t.start()
 
 
 def collect_all_news(config_path: str, max_age_days: int) -> list[NewsItem]:
@@ -33,9 +58,6 @@ def main():
         "-c", "--config", default="config.yaml", help="配置文件路径 (默认: config.yaml)"
     )
     parser.add_argument(
-        "--dry-run", action="store_true", help="仅采集和分析，不发送邮件"
-    )
-    parser.add_argument(
         "-o", "--output", type=str, default=None, help="将简报保存到指定文件"
     )
     parser.add_argument(
@@ -45,8 +67,33 @@ def main():
         "--output-format", choices=["md", "html", "text"], default="md",
         help="输出文件格式 (默认: md)"
     )
+    parser.add_argument(
+        "--serve", action="store_true", help="启动 Web 服务"
+    )
+    parser.add_argument(
+        "--port", type=int, default=8080, help="Web 服务端口 (默认: 8080)"
+    )
     args = parser.parse_args()
 
+    # ── Web 模式 ──
+    if args.serve or _is_frozen():
+        import uvicorn
+        from src.server import app
+
+        print("=" * 50)
+        print("  新闻信息收集系统")
+        print("=" * 50)
+        print(f"  服务地址: http://localhost:{args.port}")
+        print(f"  浏览器将自动打开，如未打开请手动访问上述地址。")
+        print()
+        print("  关闭浏览器后，请手动关闭此窗口退出程序。")
+        print("=" * 50)
+
+        _open_browser(args.port)
+        uvicorn.run(app, host="0.0.0.0", port=args.port, log_level="info")
+        return
+
+    # ── CLI 模式 ──
     print(f"加载配置: {args.config}")
     config = load_config(args.config)
 
@@ -79,19 +126,7 @@ def main():
         Path(args.output).write_text(content, encoding="utf-8")
         print(f"简报已保存至: {args.output}")
 
-    if args.dry_run:
-        print("\n[Dry-Run 模式] 跳过邮件发送。")
-        return
-
-    print("发送邮件...")
-    sender = EmailSender(config.email)
-    success = sender.send(briefing)
     _archive_briefing(briefing)
-    if success:
-        print(f"邮件已发送至: {config.email.recipients}")
-    else:
-        print("邮件发送失败！")
-        sys.exit(1)
 
 
 def _archive_briefing(briefing):

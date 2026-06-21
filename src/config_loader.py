@@ -47,7 +47,7 @@ class EmailConfig(BaseModel):
 class AppConfig(BaseModel):
     news_sources: list[NewsSourceConfig]
     llm: LLMConfig
-    email: EmailConfig
+    email: EmailConfig | None = None
 
 
 def _resolve_env_vars(value: str) -> str:
