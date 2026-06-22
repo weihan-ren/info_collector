@@ -2,6 +2,7 @@
 
 import argparse
 import io
+import platform
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -10,8 +11,8 @@ from src.config_loader import load_config
 from src.collector import NewsItem, create_collector
 from src.analyzer import NewsAnalyzer
 
-# Ensure UTF-8 console output (dev mode only; PyInstaller --console handles this natively).
-if not getattr(sys, "frozen", False):
+# Ensure UTF-8 console output on Windows; macOS / Linux terminals are UTF-8 by default.
+if platform.system() == "Windows" and not getattr(sys, "frozen", False):
     try:
         sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
     except (ValueError, AttributeError, OSError):

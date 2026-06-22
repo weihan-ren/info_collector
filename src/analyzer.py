@@ -53,7 +53,7 @@ class Briefing:
             '<meta charset="utf-8">',
             '<meta name="viewport" content="width=device-width, initial-scale=1.0">',
             "<style>",
-            "  body { font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif; "
+            "  body { font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; "
             "max-width: 720px; margin: 0 auto; padding: 20px; color: #333; line-height: 1.7; }",
             "  h1 { color: #1a1a1a; border-bottom: 2px solid #0066cc; padding-bottom: 12px; }",
             "  h2 { color: #0066cc; margin-top: 28px; }",

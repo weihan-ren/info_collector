@@ -2,9 +2,10 @@
   "permissions": {
     "allow": [
       "WebSearch",
-      "Bash(.venv/Scripts/python.exe main.py --dry-run)",
-      "Bash(.venv/Scripts/python.exe -c ' *)",
-      "Bash(.venv/Scripts/python.exe main.py --dry-run -o test_output.html --output-format html)"
+      "Bash(.venv/bin/python* main.py --dry-run)",
+      "Bash(.venv/bin/python* -c ' *)",
+      "Bash(.venv/bin/python* main.py --dry-run -o test_output.html --output-format html)",
+      "Bash(uv venv *)"
     ]
   }
 }

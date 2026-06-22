@@ -20,7 +20,7 @@ from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
 
 from src.analyzer import Briefing, NewsAnalyzer
-from src.collector import NewsItem, create_collector
+from src.collector import NewsItem, create_collector, get_user_agent
 from src.config_loader import (
     AppConfig,
     DEFAULT_ANALYSIS_PROMPT,
@@ -30,8 +30,9 @@ from src.config_loader import (
     load_config,
 )
 
-# Ensure UTF-8 output in dev mode; in frozen (exe) mode, console handles it natively.
-if not getattr(sys, "frozen", False):
+# Ensure UTF-8 console output on Windows; macOS / Linux terminals are UTF-8 by default.
+import platform as _platform
+if _platform.system() == "Windows" and not getattr(sys, "frozen", False):
     try:
         sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
     except (ValueError, AttributeError, OSError):
@@ -349,11 +350,7 @@ async def chat(request: ChatRequest):
 # ── Web Search ────────────────────────────────────────────────
 
 _SEARCH_HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/120.0.0.0 Safari/537.36"
-    ),
+    "User-Agent": get_user_agent(),
     "Accept": "text/html,application/xhtml+xml",
     "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
 }
@@ -519,11 +516,7 @@ def _fetch_url_content(url: str, timeout: int = 8, max_chars: int = 8000) -> str
     """Fetch a URL and extract its text content."""
     try:
         resp = requests.get(url, timeout=timeout, headers={
-            "User-Agent": (
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/120.0.0.0 Safari/537.36"
-            ),
+            "User-Agent": get_user_agent(),
             "Accept": "text/html,application/xhtml+xml",
             "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
         })

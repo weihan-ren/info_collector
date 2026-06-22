@@ -1,3 +1,4 @@
+import platform
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -8,6 +9,29 @@ import requests
 from bs4 import BeautifulSoup
 
 from src.config_loader import NewsSourceConfig, SourceType, JsonFieldMapping
+
+
+def get_user_agent() -> str:
+    """Return a browser User-Agent string matching the current platform."""
+    system = platform.system()
+    if system == "Darwin":
+        return (
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/120.0.0.0 Safari/537.36"
+        )
+    elif system == "Windows":
+        return (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/120.0.0.0 Safari/537.36"
+        )
+    else:
+        return (
+            "Mozilla/5.0 (X11; Linux x86_64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/120.0.0.0 Safari/537.36"
+        )
 
 
 @dataclass
@@ -72,11 +96,7 @@ class RSSCollector(BaseCollector):
 class HTMLCollector(BaseCollector):
     def collect(self) -> list[NewsItem]:
         resp = requests.get(self.config.url, timeout=30, headers={
-            "User-Agent": (
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/120.0.0.0 Safari/537.36"
-            ),
+            "User-Agent": get_user_agent(),
             "Accept": "text/html,application/xhtml+xml",
             "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
         })
