@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>新闻信息收集系统</title>
+<style>
+  :root {
+    --primary: #0066cc;
+    --primary-light: #e6f0ff;
+    --danger: #c00;
+    --danger-light: #fff0f0;
+    --success: #0a0;
+    --bg: #f5f7fa;
+    --card-bg: #fff;
+    --text: #333;
+    --text-secondary: #666;
+    --border: #e0e0e0;
+    --radius: 8px;
+    --sidebar-w: 320px;
+    --chat-w: 380px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    height: 100vh;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  /* ── Header ── */
+  header {
+    background: var(--card-bg);
+    border-bottom: 1px solid var(--border);
+    padding: 0 16px;
+    height: 44px;
+    display: flex; align-items: center;
+    flex-shrink: 0;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    gap: 12px;
+  }
+  header h1 { font-size: 16px; color: var(--primary); white-space: nowrap; }
+  .header-link {
+    font-size: 12px; color: var(--text-secondary); text-decoration: none;
+    padding: 2px 8px; border: 1px solid var(--border); border-radius: 4px;
+    white-space: nowrap;
+  }
+  .header-link:hover { background: var(--primary-light); color: var(--primary); }
+  .header-spacer { flex: 1; }
+  .header-btn {
+    background: none; border: 1px solid var(--border); border-radius: 4px;
+    padding: 3px 10px; cursor: pointer; font-size: 13px; color: var(--text-secondary);
+    white-space: nowrap;
+  }
+  .header-btn:hover { background: var(--bg); color: var(--text); }
+  .header-btn.active { background: var(--primary-light); color: var(--primary); border-color: var(--primary); }
+
+  /* ── Layout ── */
+  .layout { display: flex; flex: 1; overflow: hidden; }
+
+  /* ── Left Sidebar (Config) ── */
+  .sidebar {
+    width: var(--sidebar-w); flex-shrink: 0;
+    border-right: 1px solid var(--border);
+    background: var(--card-bg);
+    display: flex; flex-direction: column;
+    transition: width 0.2s; overflow: hidden;
+  }
+  .sidebar.collapsed { width: 40px; }
+  .sidebar-top {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 10px; border-bottom: 1px solid var(--border);
+    flex-shrink: 0; min-height: 34px;
+  }
+  .sidebar.collapsed .sidebar-top { justify-content: center; padding: 6px 0; border-bottom: none; }
+  .sidebar-top-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+  .sidebar.collapsed .sidebar-top-label { display: none; }
+  .btn-toggle-sidebar {
+    background: none; border: 1px solid var(--border); border-radius: 4px;
+    padding: 1px 7px; cursor: pointer; font-size: 14px; color: var(--text-secondary); line-height: 1.4;
+  }
+  .sidebar.collapsed .btn-toggle-sidebar { border: none; padding: 1px 3px; }
+  .btn-toggle-sidebar:hover { background: var(--primary-light); color: var(--primary); }
+  .sidebar-scroll {
+    flex: 1; overflow-y: auto; padding: 10px;
+    transition: opacity 0.1s;
+  }
+  .sidebar.collapsed .sidebar-scroll { opacity: 0; pointer-events: none; }
+  .sidebar-footer {
+    padding: 8px 10px; border-top: 1px solid var(--border); flex-shrink: 0;
+  }
+  .sidebar.collapsed .sidebar-footer { display: none; }
+
+  /* Accordion */
+  .accordion { margin-bottom: 8px; }
+  .accordion-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 7px 10px; background: var(--bg);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    cursor: pointer; user-select: none; font-size: 13px; font-weight: 600;
+  }
+  .accordion-header:hover { background: var(--primary-light); }
+  .accordion-header .arrow { transition: transform 0.2s; font-size: 10px; color: var(--text-secondary); }
+  .accordion.open .accordion-header .arrow { transform: rotate(90deg); }
+  .accordion-body { display: none; padding: 8px 2px; }
+  .accordion.open .accordion-body { display: block; }
+
+  .form-group { margin-bottom: 7px; }
+  .form-group label {
+    display: block; font-size: 11px; font-weight: 600;
+    color: var(--text-secondary); margin-bottom: 2px;
+  }
+  .form-group input, .form-group select, .form-group textarea {
+    width: 100%; padding: 5px 8px;
+    border: 1px solid var(--border); border-radius: 4px;
+    font-size: 12px; font-family: inherit;
+  }
+  .form-group textarea { resize: vertical; min-height: 60px; }
+  .form-row { display: flex; gap: 6px; }
+  .form-row .form-group { flex: 1; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 5px 12px; border: 1px solid transparent;
+    border-radius: 4px; font-size: 12px; cursor: pointer;
+    transition: all 0.15s; font-family: inherit;
+  }
+  .btn-primary { background: var(--primary); color: #fff; }
+  .btn-primary:hover { opacity: 0.9; }
+  .btn-danger { background: none; color: var(--danger); border-color: var(--danger); }
+  .btn-danger:hover { background: var(--danger-light); }
+  .btn-sm { padding: 2px 6px; font-size: 10px; }
+  .btn-outline { background: none; color: var(--primary); border-color: var(--primary); }
+  .btn-outline:hover { background: var(--primary-light); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-block { width: 100%; justify-content: center; }
+
+  .source-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 5px 8px; background: var(--bg); border-radius: 4px; margin-bottom: 4px;
+    font-size: 12px;
+  }
+  .source-item .info { flex: 1; overflow: hidden; }
+  .source-item .name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .source-item .meta { font-size: 10px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .source-item .actions { display: flex; gap: 2px; }
+  .badge {
+    display: inline-block; padding: 1px 4px; border-radius: 3px;
+    font-size: 9px; font-weight: 600;
+  }
+  .badge-rss { background: #fff3cd; color: #856404; }
+  .badge-html { background: #d4edff; color: #004085; }
+  .badge-json { background: #e8daef; color: #6c3483; }
+
+  .status-toast { font-size: 11px; display: block; text-align: center; margin-top: 4px; }
+  .status-toast.ok { color: var(--success); }
+  .status-toast.err { color: var(--danger); }
+
+  /* ── Center: Briefing ── */
+  .main-content {
+    flex: 1; display: flex; flex-direction: column;
+    overflow: hidden; min-width: 0; background: var(--card-bg);
+  }
+  .briefing-section {
+    flex: 1; display: flex; flex-direction: column;
+    padding: 16px 20px; overflow-y: auto;
+  }
+  .briefing-section h2 {
+    font-size: 14px; color: var(--text); margin-bottom: 12px;
+    display: flex; align-items: center; gap: 8px;
+    flex-shrink: 0;
+  }
+  .collect-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-shrink: 0; }
+  .collect-bar .status { font-size: 12px; color: var(--text-secondary); }
+
+  .briefing { line-height: 1.8; font-size: 14px; text-align: left; }
+  .briefing h1 { font-size: 20px; margin-bottom: 10px; }
+  .briefing h2 { font-size: 15px; color: var(--primary); margin: 12px 0 4px; padding-bottom: 2px; border-bottom: 1px solid var(--primary-light); }
+  .briefing .hl h2 { color: var(--danger); }
+  .briefing ul { padding-left: 18px; }
+  .briefing li { margin-bottom: 2px; }
+  .briefing a { color: var(--primary); }
+  .briefing .meta { color: var(--text-secondary); font-size: 12px; margin-top: 12px; padding-top: 8px; border-top: 1px solid var(--border); }
+  .source-stats { font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; flex-shrink: 0; }
+  .empty-briefing { text-align: left; padding: 20px 0; color: var(--text-secondary); font-size: 14px; }
+
+  /* ── Right Sidebar (Chat) ── */
+  .chat-sidebar {
+    width: var(--chat-w); flex-shrink: 0;
+    border-left: 1px solid var(--border);
+    background: var(--card-bg);
+    display: flex; flex-direction: column;
+    transition: width 0.2s; overflow: hidden;
+  }
+  .chat-sidebar.collapsed { width: 40px; }
+  .chat-top {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 10px; border-bottom: 1px solid var(--border);
+    flex-shrink: 0; min-height: 34px;
+  }
+  .chat-sidebar.collapsed .chat-top { justify-content: center; padding: 6px 0; border-bottom: none; }
+  .chat-top-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+  .chat-sidebar.collapsed .chat-top-label { display: none; }
+  .btn-toggle-chat {
+    background: none; border: 1px solid var(--border); border-radius: 4px;
+    padding: 1px 7px; cursor: pointer; font-size: 14px; color: var(--text-secondary); line-height: 1.4;
+  }
+  .chat-sidebar.collapsed .btn-toggle-chat { border: none; padding: 1px 3px; }
+  .btn-toggle-chat:hover { background: var(--primary-light); color: var(--primary); }
+  .chat-sidebar-inner {
+    flex: 1; display: flex; flex-direction: column;
+    padding: 10px; overflow: hidden;
+    transition: opacity 0.1s;
+  }
+  .chat-sidebar.collapsed .chat-sidebar-inner { opacity: 0; pointer-events: none; }
+
+  .chat-container { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+  .chat-messages {
+    flex: 1; overflow-y: auto; margin-bottom: 8px;
+    padding: 10px; background: var(--bg); border-radius: var(--radius);
+  }
+  .chat-msg { margin-bottom: 12px; max-width: 90%; }
+  .chat-msg.user { margin-left: auto; text-align: right; }
+  .chat-msg.assistant { margin-right: auto; }
+  .chat-msg .role { font-size: 10px; font-weight: 600; color: var(--text-secondary); margin-bottom: 2px; }
+  .chat-msg .content {
+    display: inline-block; padding: 7px 10px; border-radius: 10px;
+    font-size: 12px; line-height: 1.6; text-align: left; word-break: break-word;
+    max-width: 100%;
+  }
+  .chat-msg.user .content { background: var(--primary); color: #fff; border-bottom-right-radius: 3px; }
+  .chat-msg.assistant .content { background: var(--card-bg); border: 1px solid var(--border); border-bottom-left-radius: 3px; }
+  .chat-msg .content p { margin-bottom: 3px; }
+  .chat-msg .content p:last-child { margin-bottom: 0; }
+  .chat-msg .content ul, .chat-msg .content ol { padding-left: 16px; margin: 3px 0; }
+  .chat-msg .content li { margin-bottom: 1px; }
+  .chat-msg .content pre { background: rgba(0,0,0,0.05); padding: 6px 8px; border-radius: 4px; overflow-x: auto; font-size: 11px; margin: 4px 0; }
+  .chat-msg .content code { font-size: 11px; background: rgba(0,0,0,0.05); padding: 1px 3px; border-radius: 2px; }
+  .chat-msg .content pre code { background: none; padding: 0; }
+  .chat-msg .content blockquote { border-left: 2px solid var(--primary); padding-left: 8px; color: var(--text-secondary); margin: 4px 0; }
+  .chat-msg .content table { border-collapse: collapse; margin: 4px 0; font-size: 11px; }
+  .chat-msg .content th, .chat-msg .content td { border: 1px solid var(--border); padding: 3px 6px; text-align: left; }
+  .chat-msg .content th { background: var(--bg); font-weight: 600; }
+  .chat-msg .content strong { font-weight: 600; }
+  .chat-msg .content em { font-style: italic; }
+  .chat-msg .content h1, .chat-msg .content h2, .chat-msg .content h3 { margin: 6px 0 3px; font-weight: 600; }
+  .chat-msg .content h1 { font-size: 15px; } .chat-msg .content h2 { font-size: 14px; } .chat-msg .content h3 { font-size: 13px; }
+  .chat-msg .content hr { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
+
+  .reasoning-box {
+    margin-top: 3px; border: 1px solid #e8d5b0; border-radius: 5px; overflow: hidden; font-size: 11px;
+  }
+  .reasoning-box summary { padding: 4px 8px; background: #fef9f0; color: #b8860b; cursor: pointer; font-weight: 600; }
+  .reasoning-box .reasoning-content {
+    padding: 4px 8px; background: #fffef8; color: #8b7355;
+    white-space: pre-wrap; line-height: 1.5; max-height: 160px; overflow-y: auto;
+    border-top: 1px solid #e8d5b0;
+  }
+  .chat-input-row { display: flex; gap: 6px; align-items: flex-end; flex-shrink: 0; }
+  .chat-input-row textarea {
+    flex: 1; padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius);
+    font-size: 12px; font-family: inherit; resize: none;
+    min-height: 34px; max-height: 80px;
+  }
+  .chat-input-row textarea:focus { outline: none; border-color: var(--primary); }
+  .search-toggle { display: flex; align-items: center; gap: 3px; font-size: 11px; color: var(--text-secondary); white-space: nowrap; }
+  .search-toggle input { accent-color: var(--primary); }
+  .thinking-indicator { color: var(--text-secondary); font-size: 11px; }
+  .empty-chat { text-align: center; padding: 20px; color: var(--text-secondary); font-size: 12px; }
+
+  /* ── Modal ── */
+  .modal-overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 100;
+  }
+  .modal {
+    background: var(--card-bg); border-radius: var(--radius); padding: 24px;
+    max-width: 520px; width: 90%; max-height: 80vh; overflow-y: auto;
+  }
+  .modal h3 { margin-bottom: 14px; }
+  .modal .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>📰 新闻信息收集系统</h1>
+  <a class="header-link" href="https://chat.deepseek.com/" target="_blank" title="打开 DeepSeek Chat">🔗 DeepSeek Chat</a>
+  <span class="header-spacer"></span>
+  <button class="header-btn active" id="btn-toggle-config" onclick="toggleSidebar()">⚙️ 配置</button>
+  <button class="header-btn active" id="btn-toggle-chat" onclick="toggleChatSidebar()">💬 对话</button>
+</header>
+
+<div class="layout">
+
+  <!-- ========== 左侧边栏：配置 ========== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-top">
+      <span class="sidebar-top-label">⚙️ 配置</span>
+      <button class="btn-toggle-sidebar" onclick="toggleSidebar()" title="折叠/展开">◀</button>
+    </div>
+
+    <div class="sidebar-scroll">
+      <div class="accordion" id="acc-sources">
+        <div class="accordion-header" onclick="toggleAccordion('acc-sources')">
+          <span>📡 新闻源</span><span class="arrow">▶</span>
+        </div>
+        <div class="accordion-body">
+          <div id="source-list"></div>
+          <button class="btn btn-outline btn-sm" onclick="openSourceModal()" style="margin-top:8px">+ 添加新闻源</button>
+        </div>
+      </div>
+
+      <div class="accordion" id="acc-llm">
+        <div class="accordion-header" onclick="toggleAccordion('acc-llm')">
+          <span>🧠 模型配置</span><span class="arrow">▶</span>
+        </div>
+        <div class="accordion-body">
+          <div class="form-group">
+            <label>API Key</label>
+            <input type="password" id="llm-api-key" placeholder="sk-...">
+          </div>
+          <div class="form-group">
+            <label>API Base URL</label>
+            <input type="text" id="llm-base-url" placeholder="https://api.openai.com/v1">
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>模型</label>
+              <input type="text" id="llm-model" placeholder="gpt-4o">
+            </div>
+            <div class="form-group">
+              <label>Temperature</label>
+              <input type="number" id="llm-temperature" step="0.1" min="0" max="2" value="0.7">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>分析 Prompt 模板（{news_text} 占位）</label>
+            <textarea id="llm-prompt" rows="4"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-footer">
+      <button class="btn btn-primary btn-block" onclick="saveConfig()">💾 保存配置</button>
+      <span class="status-toast" id="config-status"></span>
+    </div>
+  </aside>
+
+  <!-- ========== 中间：新闻简报 ========== -->
+  <div class="main-content">
+    <section class="briefing-section">
+      <h2>📊 新闻简报</h2>
+      <div class="collect-bar">
+        <button class="btn btn-primary" id="btn-collect" onclick="collectNews()">🔍 采集并分析</button>
+        <span class="status" id="collect-status"></span>
+      </div>
+      <div id="collect-result" class="empty-briefing">
+        <p>点击上方按钮开始采集新闻</p>
+      </div>
+    </section>
+  </div>
+
+  <!-- ========== 右侧边栏：AI 对话 ========== -->
+  <aside class="chat-sidebar" id="chat-sidebar">
+    <div class="chat-top">
+      <span class="chat-top-label">💬 AI 对话</span>
+      <button class="btn-toggle-chat" onclick="toggleChatSidebar()" title="折叠/展开">▶</button>
+    </div>
+    <div class="chat-sidebar-inner">
+      <div class="chat-container">
+        <div class="chat-messages" id="chat-messages">
+          <div class="empty-chat">支持分析网页、联网搜索、新闻问答</div>
+        </div>
+        <div class="chat-input-row">
+          <textarea id="chat-input" rows="1" placeholder="输入消息（可粘贴链接）..." onkeydown="handleChatKey(event)"></textarea>
+          <label class="search-toggle">
+            <input type="checkbox" id="enable-search">搜索
+          </label>
+          <button class="btn btn-primary" onclick="sendChat()">发送</button>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+</div>
+
+<!-- ========== 新闻源编辑弹窗 ========== -->
+<div class="modal-overlay" id="source-modal" style="display:none" onclick="closeModalOnOverlay(event)">
+  <div class="modal">
+    <h3 id="modal-title">添加新闻源</h3>
+    <input type="hidden" id="edit-index" value="-1">
+    <div class="form-group">
+      <label>名称</label>
+      <input type="text" id="src-name" placeholder="如：36氪">
+    </div>
+    <div class="form-group">
+      <label>类型</label>
+      <select id="src-type" onchange="toggleMappingFields()">
+        <option value="rss">RSS</option>
+        <option value="html">HTML</option>
+        <option value="json">JSON</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>URL</label>
+      <input type="text" id="src-url" placeholder="https://...">
+    </div>
+    <div id="html-mapping-fields" style="display:none">
+      <div class="form-group">
+        <label>条目 CSS 选择器</label>
+        <input type="text" id="html-item-selector" placeholder="div.news_list a">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>标题选择器</label>
+          <input type="text" id="html-title-selector" placeholder="">
+        </div>
+        <div class="form-group">
+          <label>链接选择器</label>
+          <input type="text" id="html-link-selector" placeholder="">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>URL 前缀</label>
+        <input type="text" id="html-url-prefix" placeholder="https://example.com">
+      </div>
+    </div>
+    <div id="json-mapping-fields" style="display:none">
+      <div class="form-group">
+        <label>数据路径（点号分隔）</label>
+        <input type="text" id="json-items-path" value="data.items">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>标题字段</label>
+          <input type="text" id="json-title-field" value="title">
+        </div>
+        <div class="form-group">
+          <label>链接字段</label>
+          <input type="text" id="json-url-field" value="uri">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>摘要字段</label>
+        <input type="text" id="json-summary-field" value="content">
+      </div>
+      <div class="form-group">
+        <label>URL 前缀</label>
+        <input type="text" id="json-url-prefix" placeholder="">
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn btn-outline" onclick="closeSourceModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveSource()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ================
+// Sidebar Toggle
+// ================
+function toggleSidebar() {
+  const sb = document.getElementById('sidebar');
+  const btn = document.getElementById('btn-toggle-config');
+  sb.classList.toggle('collapsed');
+  btn.classList.toggle('active', !sb.classList.contains('collapsed'));
+  const tgl = sb.querySelector('.btn-toggle-sidebar');
+  tgl.textContent = sb.classList.contains('collapsed') ? '▶' : '◀';
+}
+
+function toggleChatSidebar() {
+  const sb = document.getElementById('chat-sidebar');
+  const btn = document.getElementById('btn-toggle-chat');
+  sb.classList.toggle('collapsed');
+  btn.classList.toggle('active', !sb.classList.contains('collapsed'));
+  const tgl = sb.querySelector('.btn-toggle-chat');
+  tgl.textContent = sb.classList.contains('collapsed') ? '◀' : '▶';
+}
+
+function toggleAccordion(id) {
+  document.getElementById(id).classList.toggle('open');
+}
+
+// ================
+// Config
+// ================
+let currentSources = [];
+
+async function loadConfig() {
+  try {
+    const resp = await fetch('/api/config');
+    if (!resp.ok) throw new Error(await resp.text());
+    const cfg = await resp.json();
+    currentSources = cfg.news_sources || [];
+    renderSources();
+    if (cfg.llm) {
+      document.getElementById('llm-api-key').value = cfg.llm.api_key || '';
+      document.getElementById('llm-base-url').value = cfg.llm.base_url || 'https://api.openai.com/v1';
+      document.getElementById('llm-model').value = cfg.llm.model || 'gpt-4o';
+      document.getElementById('llm-temperature').value = cfg.llm.temperature ?? 0.7;
+      document.getElementById('llm-prompt').value = cfg.llm.analysis_prompt || '';
+    }
+  } catch (e) {
+    console.error('加载配置失败:', e);
+  }
+}
+
+function renderSources() {
+  const list = document.getElementById('source-list');
+  if (currentSources.length === 0) {
+    list.innerHTML = '<div style="font-size:11px;color:var(--text-secondary);padding:6px 0">暂无新闻源</div>';
+    return;
+  }
+  list.innerHTML = currentSources.map((s, i) => `
+    <div class="source-item">
+      <div class="info">
+        <div class="name">${esc(s.name)} <span class="badge badge-${s.type}">${s.type.toUpperCase()}</span></div>
+        <div class="meta">${esc(s.url)}</div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-outline btn-sm" onclick="editSource(${i})">✎</button>
+        <button class="btn btn-danger btn-sm" onclick="removeSource(${i})">✕</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function saveConfig() {
+  const btn = event.target;
+  btn.disabled = true;
+  const status = document.getElementById('config-status');
+  try {
+    const body = {
+      news_sources: currentSources,
+      llm: {
+        api_key: document.getElementById('llm-api-key').value,
+        base_url: document.getElementById('llm-base-url').value,
+        model: document.getElementById('llm-model').value,
+        temperature: parseFloat(document.getElementById('llm-temperature').value) || 0.7,
+        analysis_prompt: document.getElementById('llm-prompt').value,
+      }
+    };
+    const resp = await fetch('/api/config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!resp.ok) throw new Error((await resp.json()).detail || resp.statusText);
+    status.textContent = '✅ 已保存';
+    status.className = 'status-toast ok';
+    setTimeout(() => status.textContent = '', 3000);
+  } catch (e) {
+    status.textContent = `❌ ${e.message}`;
+    status.className = 'status-toast err';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ================
+// Source Modal
+// ================
+function openSourceModal(index = -1) {
+  document.getElementById('edit-index').value = index;
+  document.getElementById('modal-title').textContent = index >= 0 ? '编辑新闻源' : '添加新闻源';
+  document.getElementById('source-modal').style.display = 'flex';
+  if (index >= 0) {
+    const s = currentSources[index];
+    document.getElementById('src-name').value = s.name;
+    document.getElementById('src-type').value = s.type;
+    document.getElementById('src-url').value = s.url;
+    if (s.html_mapping) {
+      document.getElementById('html-item-selector').value = s.html_mapping.item_selector || '';
+      document.getElementById('html-title-selector').value = s.html_mapping.title_selector || '';
+      document.getElementById('html-link-selector').value = s.html_mapping.link_selector || '';
+      document.getElementById('html-url-prefix').value = s.html_mapping.url_prefix || '';
+    }
+    if (s.json_mapping) {
+      document.getElementById('json-items-path').value = s.json_mapping.items_path || 'data.items';
+      document.getElementById('json-title-field').value = s.json_mapping.title_field || 'title';
+      document.getElementById('json-url-field').value = s.json_mapping.url_field || 'uri';
+      document.getElementById('json-summary-field').value = s.json_mapping.summary_field || 'content';
+      document.getElementById('json-url-prefix').value = s.json_mapping.url_prefix || '';
+    }
+  } else {
+    resetModalFields();
+  }
+  toggleMappingFields();
+}
+
+function resetModalFields() {
+  ['src-name','src-url','html-item-selector','html-title-selector','html-link-selector','html-url-prefix','json-url-prefix'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('src-type').value = 'rss';
+  document.getElementById('json-items-path').value = 'data.items';
+  document.getElementById('json-title-field').value = 'title';
+  document.getElementById('json-url-field').value = 'uri';
+  document.getElementById('json-summary-field').value = 'content';
+}
+
+function closeSourceModal() { document.getElementById('source-modal').style.display = 'none'; }
+function closeModalOnOverlay(e) { if (e.target === document.getElementById('source-modal')) closeSourceModal(); }
+
+function toggleMappingFields() {
+  const type = document.getElementById('src-type').value;
+  document.getElementById('html-mapping-fields').style.display = type === 'html' ? 'block' : 'none';
+  document.getElementById('json-mapping-fields').style.display = type === 'json' ? 'block' : 'none';
+}
+
+function saveSource() {
+  const name = document.getElementById('src-name').value.trim();
+  const type = document.getElementById('src-type').value;
+  const url = document.getElementById('src-url').value.trim();
+  if (!name || !url) { alert('请填写名称和URL'); return; }
+  const source = { name, url, type };
+  if (type === 'html') {
+    source.html_mapping = {
+      item_selector: document.getElementById('html-item-selector').value,
+      title_selector: document.getElementById('html-title-selector').value,
+      link_selector: document.getElementById('html-link-selector').value,
+      url_prefix: document.getElementById('html-url-prefix').value,
+    };
+  }
+  if (type === 'json') {
+    source.json_mapping = {
+      items_path: document.getElementById('json-items-path').value,
+      title_field: document.getElementById('json-title-field').value,
+      url_field: document.getElementById('json-url-field').value,
+      summary_field: document.getElementById('json-summary-field').value,
+      url_prefix: document.getElementById('json-url-prefix').value,
+    };
+  }
+  const index = parseInt(document.getElementById('edit-index').value);
+  if (index >= 0) { currentSources[index] = source; } else { currentSources.push(source); }
+  renderSources();
+  closeSourceModal();
+}
+
+function editSource(i) { openSourceModal(i); }
+function removeSource(i) {
+  if (confirm(`确定删除新闻源 "${currentSources[i].name}"？`)) {
+    currentSources.splice(i, 1);
+    renderSources();
+  }
+}
+
+// ================
+// News Collection
+// ================
+async function collectNews() {
+  const btn = document.getElementById('btn-collect');
+  const status = document.getElementById('collect-status');
+  const result = document.getElementById('collect-result');
+  btn.disabled = true;
+  status.textContent = '⏳ 正在采集和分析...';
+  result.innerHTML = '';
+  try {
+    const resp = await fetch('/api/collect', { method: 'POST' });
+    const data = await resp.json();
+    if (!data.success) throw new Error(data.error || '采集失败');
+    status.textContent = `✅ 共采集 ${data.news_count} 条新闻`;
+    let html = '<div class="source-stats">';
+    data.sources.forEach(s => {
+      html += s.success
+        ? ` <span style="color:var(--success)">${esc(s.name)}: ${s.count}条</span>`
+        : ` <span style="color:var(--danger)">${esc(s.name)}: ${s.error||'失败'}</span>`;
+    });
+    html += '</div>';
+    if (data.briefing) html += renderBriefing(data.briefing);
+    result.innerHTML = html;
+  } catch (e) {
+    status.textContent = '❌ 采集失败';
+    result.innerHTML = `<div style="color:var(--danger);font-size:13px">${esc(e.message)}</div>`;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function renderBriefing(b) {
+  let html = '<div class="briefing">';
+  html += `<h1>${esc(b.title)}</h1>`;
+  if (b.highlights && b.highlights.length > 0) {
+    html += '<div class="hl"><h2>重点关注</h2><ul>';
+    b.highlights.forEach(h => html += `<li>${mdInline(h)}</li>`);
+    html += '</ul></div>';
+  }
+  if (b.categories) {
+    b.categories.forEach(cat => {
+      html += `<h2>${esc(cat.category)}</h2><ul>`;
+      (cat.items || []).forEach(item => html += `<li>${mdInline(item)}</li>`);
+      html += '</ul>';
+    });
+  }
+  if (b.generated_at) html += `<div class="meta">生成时间: ${new Date(b.generated_at).toLocaleString()}</div>`;
+  html += '</div>';
+  return html;
+}
+
+// ================
+// Markdown
+// ================
+function mdInline(text) {
+  return esc(text)
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*([^*]+)\*/g, '<em>$1</em>');
+}
+
+function mdToHtml(text) {
+  if (!text) return '';
+  let t = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  const codeBlocks = [];
+  t = t.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => {
+    const idx = codeBlocks.length;
+    codeBlocks.push({ lang: esc(lang), code: esc(code.trimEnd()) });
+    return `\x00CB${idx}\x00`;
+  });
+  t = esc(t);
+  t = t.replace(/\x00CB(\d+)\x00/g, (_, i) => `\x00CB${i}\x00`);
+  const lines = t.split('\n');
+  const out = [];
+  let i = 0, inList = null, inTable = false, inBq = false;
+  function closeL() { if (inList) { out.push(`</${inList}>`); inList = null; } }
+  function closeBq() { if (inBq) { out.push('</blockquote>'); inBq = false; } }
+  function closeT() { if (inTable) { out.push('</tbody></table>'); inTable = false; } }
+  while (i < lines.length) {
+    let line = lines[i];
+    if (/^\|.+\|$/.test(line) && i+1<lines.length && /^\|[\s\-:|]+\|$/.test(lines[i+1])) {
+      closeL(); closeBq();
+      const aligns = lines[i+1].split('|').filter(c => c.trim()).map(c => c.startsWith(':')&&c.endsWith(':')?'center':c.endsWith(':')?'right':'left');
+      const headers = line.split('|').filter(c => c.trim()).map(c => inlineFmt(c.trim()));
+      out.push('<table><thead><tr>'); headers.forEach((h,j) => out.push(`<th${' style="text-align:'+aligns[j]+'"'}>${h}</th>`));
+      out.push('</tr></thead><tbody>'); inTable = true; i += 2;
+      while (i<lines.length && /^\|.+\|$/.test(lines[i])) {
+        const cells = lines[i].split('|').filter(c => c.trim()).map(c => inlineFmt(c.trim()));
+        out.push('<tr>'); cells.forEach((c,j) => out.push(`<td${' style="text-align:'+aligns[j]+'"'}>${c}</td>`)); out.push('</tr>');
+        i++;
+      }
+      continue;
+    }
+    if (inTable && !/^\|.+\|$/.test(line)) { closeT(); if (!line) { i++; continue; } }
+    if (line === '') { closeL(); if (inBq && i+1<lines.length && lines[i+1].startsWith('&gt; ')) out.push('<br>'); else closeBq(); i++; continue; }
+    if (line.startsWith('&gt; ')) { closeL(); closeT(); if (!inBq) { out.push('<blockquote>'); inBq = true; } out.push(inlineFmt(line.slice(5))); i++; continue; }
+    const hm = line.match(/^(#{1,4}) (.+)$/);
+    if (hm) { closeL(); closeBq(); closeT(); out.push(`<h${hm[1].length}>${inlineFmt(hm[2])}</h${hm[1].length}>`); i++; continue; }
+    if (/^(---|\*\*\*|___)$/.test(line)) { closeL(); closeBq(); closeT(); out.push('<hr>'); i++; continue; }
+    const ulm = line.match(/^(\s*)[-*+] (.+)$/);
+    if (ulm) { closeBq(); closeT(); if (inList !== 'ul') { closeL(); out.push('<ul>'); inList = 'ul'; } out.push(`<li>${inlineFmt(ulm[2])}</li>`); i++; continue; }
+    const olm = line.match(/^(\s*)\d+\. (.+)$/);
+    if (olm) { closeBq(); closeT(); if (inList !== 'ol') { closeL(); out.push('<ol>'); inList = 'ol'; } out.push(`<li>${inlineFmt(olm[2])}</li>`); i++; continue; }
+    closeL(); closeBq(); closeT(); out.push(`<p>${inlineFmt(line)}</p>`); i++;
+  }
+  closeL(); closeBq(); closeT();
+  let html = out.join('\n');
+  html = html.replace(/\x00CB(\d+)\x00/g, (_, i) => {
+    const cb = codeBlocks[parseInt(i)];
+    return `<pre><code${cb.lang?' class="language-'+cb.lang+'"':''}>${cb.code}</code></pre>`;
+  });
+  return html;
+}
+function inlineFmt(text) {
+  let t = text;
+  t = t.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" style="max-width:100%">');
+  t = t.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+  t = t.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  t = t.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+  t = t.replace(/~~([^~]+)~~/g, '<del>$1</del>');
+  t = t.replace(/`([^`]+)`/g, '<code>$1</code>');
+  return t;
+}
+
+// ================
+// Chat
+// ================
+let chatMessages = [];
+
+function handleChatKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
+}
+
+async function sendChat() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  input.style.height = 'auto';
+
+  chatMessages.push({ role: 'user', content: text });
+  renderChatMessages();
+  const msgIdx = chatMessages.length;
+  chatMessages.push({ role: 'assistant', content: '', reasoning: '' });
+  renderChatMessages();
+
+  const enableSearch = document.getElementById('enable-search').checked;
+  try {
+    const resp = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: chatMessages.filter(m => m.content !== ''),
+        enable_search: enableSearch,
+      }),
+    });
+    if (!resp.ok) throw new Error(await resp.text());
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const data = line.slice(6);
+        if (data === '[DONE]') continue;
+        try {
+          const parsed = JSON.parse(data);
+          if (parsed.status) { chatMessages[msgIdx].content = '_' + parsed.status + '_'; }
+          else if (parsed.error) { chatMessages[msgIdx].content = '❌ ' + parsed.error; }
+          else {
+            if (parsed.reasoning) chatMessages[msgIdx].reasoning = (chatMessages[msgIdx].reasoning || '') + parsed.reasoning;
+            if (parsed.content) chatMessages[msgIdx].content = (chatMessages[msgIdx].content || '') + parsed.content;
+          }
+          renderChatMessages();
+        } catch (e) {}
+      }
+    }
+  } catch (e) {
+    chatMessages[msgIdx].content = '❌ 请求失败: ' + e.message;
+    renderChatMessages();
+  }
+}
+
+function renderChatMessages() {
+  const container = document.getElementById('chat-messages');
+  if (chatMessages.length === 0) {
+    container.innerHTML = '<div class="empty-chat">支持分析网页、联网搜索、新闻问答</div>';
+    return;
+  }
+  container.innerHTML = chatMessages.map(m => {
+    if (!m.content && !m.reasoning) return '';
+    let html = '';
+    if (m.content) {
+      html = m.content.startsWith('_') && m.content.endsWith('_') ? esc(m.content) : mdToHtml(m.content);
+    }
+    let reasoning = '';
+    if (m.reasoning) {
+      reasoning = `<div class="reasoning-box"><details open><summary>🧠 思考过程</summary><div class="reasoning-content">${esc(m.reasoning)}</div></details></div>`;
+    }
+    return `<div class="chat-msg ${m.role}">
+      <div class="role">${m.role === 'user' ? '你' : 'AI 助手'}</div>
+      ${m.role === 'assistant' ? reasoning : ''}
+      <div class="content">${html || '<span class="thinking-indicator">思考中...</span>'}</div>
+    </div>`;
+  }).join('');
+  container.scrollTop = container.scrollHeight;
+}
+
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+loadConfig();
+</script>
+</body>
+</html>
